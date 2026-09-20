@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib/core';
-import { 01IamCrossAccountAccessStack } from '../lib/01-iam-cross-account-access-stack';
+import { WorkloadStack  } from '../lib/workload-stack';
 
 const app = new cdk.App();
-new 01IamCrossAccountAccessStack(app, '01IamCrossAccountAccessStack', {
+new WorkloadStack (app, 'WorkloadStack', {
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,
    * but a single synthesized template can be deployed anywhere. */
