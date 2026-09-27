@@ -33,6 +33,8 @@ export class WorkloadStack extends cdk.Stack {
 
     workloadRole.addToPolicy(s3Policy);
     workloadRole.addToPolicy(listBucketPolicy);
+
+    
   }
 }
 
