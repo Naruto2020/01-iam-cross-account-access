@@ -41,11 +41,15 @@ AdministratorAccess
 
 The resulting access model is:
 
-```text id="y5t5ij"
+```text
 steve_k
+
    │
+
    └── Workload Account
+
         │
+
         ├── CloudEngineer
         │      └── PowerUserAccess
         │
@@ -69,8 +73,9 @@ By keeping the engineering identity separate from the administrative identity, I
 
 The `CloudEngineer` permission set is intended for normal cloud engineering activities.
 
-```text id="o9h5nm"
+```text
 CloudEngineer
+
 └── PowerUserAccess
 ```
 
@@ -84,7 +89,7 @@ I use this identity for operations such as:
 
 For example:
 
-```bash id="wzq4fl"
+```bash
 cdk diff --profile CloudEngineer-494166748570
 ```
 
@@ -94,8 +99,9 @@ The successful `cdk diff` confirmed that the normal engineering identity can int
 
 The `WorkloadAdmin` permission set is intended for administrative and exceptional operations.
 
-```text id="r1j9bb"
+```text
 WorkloadAdmin
+
 └── AdministratorAccess
 ```
 
@@ -114,34 +120,61 @@ The failed CDK bootstrap provided a concrete example of why the separation was u
 
 The sequence was:
 
-```text id="c8m8lo"
+```text
 Initial CDK bootstrap
+
         │
+
         ▼
+
 CDKToolkit → DELETE_FAILED
+
         │
+
         ▼
+
 CloudEngineer
+
 PowerUserAccess
+
         │
+
         └── iam:DetachRolePolicy → AccessDenied
+
         │
+
         ▼
+
 Create separate WorkloadAdmin identity
+
         │
+
         ▼
+
 Use WorkloadAdmin for administrative cleanup
+
         │
+
         ▼
+
 Remove failed CDKToolkit
+
         │
+
         ▼
+
 Successfully bootstrap CDK
+
         │
+
         ▼
+
 Return to CloudEngineer
+
         │
+
         ▼
+
 cdk diff
 ```
 
@@ -151,26 +184,79 @@ This demonstrated the practical difference between the two access levels.
 
 I consider the two identities to represent different operational contexts rather than two equivalent ways of accessing the account.
 
-```text id="b8qkcm"
+```text
 Normal operation
+
       │
+
       ▼
+
 CloudEngineer
+
       │
+
       └── PowerUserAccess
 
 
 Administrative operation
+
       │
+
       ▼
+
 WorkloadAdmin
+
       │
+
       └── AdministratorAccess
 ```
 
 The administrative permission set is therefore used deliberately rather than automatically for all operations.
 
 This limits the use of unrestricted privileges during normal engineering activities.
+
+## CDK CloudFormation Execution Role
+
+The CDK deployment process introduces another security boundary that is separate from the human identities described above.
+
+When I bootstrapped the Workload Account, CDK created a CloudFormation execution role used by CloudFormation to deploy the infrastructure defined by CDK.
+
+For this portfolio project, I kept the execution policy as:
+
+```text
+AdministratorAccess
+```
+
+This permission applies to the **CDK CloudFormation execution role**, not to the `CloudEngineer` human identity.
+
+The access model is therefore:
+
+```text
+CloudEngineer
+└── PowerUserAccess
+        │
+        ▼
+       CDK
+        │
+        ▼
+CloudFormation
+        │
+        ▼
+CDK CloudFormation Execution Role
+└── AdministratorAccess
+```
+
+The execution role is specific to the bootstrapped AWS account and Region. Granting `AdministratorAccess` to this role does not give CloudFormation unrestricted access across the entire AWS Organization.
+
+For the scope of this portfolio project, I chose to keep this configuration rather than attempt to define a complete custom deployment policy containing only the individual AWS API actions required by the current CDK stack.
+
+This keeps the deployment model reliable and allows the project to focus on the IAM architecture, account separation, cross-account access, trust relationships, and least-privilege workload permissions.
+
+This is a deliberate **portfolio-scope decision**, not a claim that `AdministratorAccess` is the preferred deployment configuration for production environments.
+
+In a production environment, I would evaluate a more restrictive CloudFormation execution policy based on the organization's deployment model and security requirements, potentially combined with additional controls such as permissions boundaries and organizational guardrails.
+
+The important distinction is that I have deliberately limited the **human engineering identity** while accepting broader permissions for the **infrastructure deployment execution role** at this stage of the project.
 
 ## Relationship With CDK
 
@@ -180,30 +266,55 @@ I used `WorkloadAdmin` when administrative permissions were required to recover 
 
 After the environment was successfully bootstrapped, I switched back to `CloudEngineer` and successfully ran:
 
-```bash id="4h4x8v"
+```bash
 cdk diff --profile CloudEngineer-494166748570
 ```
 
 This demonstrated that the normal engineering workflow does not require me to operate permanently with the administrative identity.
 
+The CDK CloudFormation execution role is a separate identity used by CloudFormation during infrastructure deployment.
+
+Therefore, the following three security contexts are distinct:
+
+```text
+Human engineering identity
+        │
+        └── CloudEngineer
+                └── PowerUserAccess
+
+
+Human administrative identity
+        │
+        └── WorkloadAdmin
+                └── AdministratorAccess
+
+
+Infrastructure deployment identity
+        │
+        └── CloudFormation execution role
+                └── AdministratorAccess
+```
+
 ## Result
 
 The final access model is:
 
-```text id="1t6w6x"
+```text
                          Workload Account
                                 │
-                 ┌──────────────┴──────────────┐
-                 │                             │
-                 ▼                             ▼
-          CloudEngineer                  WorkloadAdmin
-          PowerUserAccess              AdministratorAccess
-                 │                             │
-                 ▼                             ▼
-        Normal engineering             Administrative /
-        operations                      recovery operations
+               ┌────────────────┼────────────────┐
+               │                │                │
+               ▼                ▼                ▼
+        CloudEngineer     WorkloadAdmin    CloudFormation
+        PowerUserAccess   AdministratorAccess   Execution Role
+               │                │                │
+               ▼                ▼                ▼
+        Normal engineering   Administrative   Infrastructure
+        operations           / recovery       deployment
 ```
 
-I will maintain this separation as the project evolves.
+I will maintain the separation between these operational contexts as the project evolves.
+
+The use of `AdministratorAccess` by the CloudFormation execution role is intentionally limited to the current portfolio implementation. It does not change the principle of keeping routine human engineering access separate from administrative access.
 
 Future cross-account access will be designed independently from these administrative permissions, using explicit IAM trust and permission policies rather than relying on broad administrative access.
