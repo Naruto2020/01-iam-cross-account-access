@@ -55,7 +55,8 @@ The permission set uses the following inline policy:
       "Action": [
         "organizations:DescribeOrganization",
         "organizations:ListAccounts",
-        "organizations:CreateAccount"
+        "organizations:CreateAccount",
+        "organizations:DescribeCreateAccountStatus"
       ],
       "Resource": "*"
     }
