@@ -3,6 +3,8 @@ import { Construct } from 'constructs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import { createWorkloadRolePolicies } from './policies/workload-role-policy';
+import { createSecurityAuditPolicies } from './policies/security-audit-policy';
 
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
@@ -22,18 +24,10 @@ export class WorkloadStack extends cdk.Stack {
             assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
         });
 
-        const s3Policy = new iam.PolicyStatement({
-            actions: ["s3:GetObject"],
-            resources: [`${bucket.bucketArn}/logs/*`]
-        });
+        const workloadPolicies = createWorkloadRolePolicies(bucket);
 
-        const listBucketPolicy = new iam.PolicyStatement({
-            actions: ["s3:ListBucket"],
-            resources: [`${bucket.bucketArn}`]
-        });
-
-        workloadRole.addToPolicy(s3Policy);
-        workloadRole.addToPolicy(listBucketPolicy);
+        workloadRole.addToPolicy(workloadPolicies.s3Policy);
+        workloadRole.addToPolicy(workloadPolicies.listBucketPolicy);
 
         const securityAuditRole = new iam.Role(this, 'SecurityAuditRole' , {
             assumedBy: new iam.ArnPrincipal(
@@ -42,95 +36,21 @@ export class WorkloadStack extends cdk.Stack {
             ),
         });
 
-        const s3SecurityAuditPolicy = new iam.PolicyStatement({
-            
-            effect: iam.Effect.ALLOW,
-            actions: [
-                "s3:GetEncryptionConfiguration",
-                "s3:GetBucketPublicAccessBlock",
-                "s3:GetBucketVersioning",
-                "s3:GetBucketPolicy",
-                "s3:GetBucketLocation"
-            ],
-            resources: [`${bucket.bucketArn}`]
-        });
 
-        const iamListRolesPolicy = new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: [
-                "iam:ListRoles"
-            ],
-            resources: ["*"]
-        });
+        const securityAuditRolePolicies = createSecurityAuditPolicies(bucket);
 
-        const iamInspectRolesPolicy = new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: [
-                "iam:GetRole",
-                "iam:GetRolePolicy"
-            ],
-            resources: ["arn:aws:iam::494166748570:role/*"]
-        });
 
-        const ec2DescribeInstancesPolicy = new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: ["ec2:DescribeInstances"],
-            resources:["*"] 
-        });
-
-        const ec2DescribeSecurityGroupsPolicy = new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: ["ec2:DescribeSecurityGroups"],
-            resources: ["*"]
-        });
-
-        const ec2DescribeNetworkInterfacesPolicy = new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: ["ec2:DescribeNetworkInterfaces"],
-            resources: ["*"]
-        });
-
-        const ec2DescribeVpcsPolicy = new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: ["ec2:DescribeVpcs"],
-            resources: ["*"]
-        });
-
-        const ec2DescribeSubnetsPolicy = new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: ["ec2:DescribeSubnets"],
-            resources: ["*"]
-        });
-
-        const ec2DescribeRouteTablesPolicy = new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: ["ec2:DescribeRouteTables"],
-            resources: ["*"]
-        });
-
-        const ec2DescribeNetworkAclsPolicy = new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: ["ec2:DescribeNetworkAcls"],
-            resources: ["*"]
-        });
-
-        const ec2DescribeInternetGatewaysPolicy = new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: ["ec2:DescribeInternetGateways"],
-            resources: ["*"]
-        });
-
-        securityAuditRole.addToPolicy(s3SecurityAuditPolicy);
-        securityAuditRole.addToPolicy(iamListRolesPolicy);
-        securityAuditRole.addToPolicy(iamInspectRolesPolicy);
-        securityAuditRole.addToPolicy(ec2DescribeInstancesPolicy);
-        securityAuditRole.addToPolicy(ec2DescribeSecurityGroupsPolicy);
-        securityAuditRole.addToPolicy(ec2DescribeNetworkInterfacesPolicy);
-        securityAuditRole.addToPolicy(ec2DescribeVpcsPolicy);
-        securityAuditRole.addToPolicy(ec2DescribeSubnetsPolicy);
-        securityAuditRole.addToPolicy(ec2DescribeRouteTablesPolicy);
-        securityAuditRole.addToPolicy(ec2DescribeNetworkAclsPolicy);
-        securityAuditRole.addToPolicy(ec2DescribeInternetGatewaysPolicy);    
+        securityAuditRole.addToPolicy(securityAuditRolePolicies.s3SecurityAuditPolicy);
+        securityAuditRole.addToPolicy(securityAuditRolePolicies.iamListRolesPolicy);
+        securityAuditRole.addToPolicy(securityAuditRolePolicies.iamInspectRolesPolicy);
+        securityAuditRole.addToPolicy(securityAuditRolePolicies.ec2DescribeInstancesPolicy);
+        securityAuditRole.addToPolicy(securityAuditRolePolicies.ec2DescribeSecurityGroupsPolicy);
+        securityAuditRole.addToPolicy(securityAuditRolePolicies.ec2DescribeNetworkInterfacesPolicy);
+        securityAuditRole.addToPolicy(securityAuditRolePolicies.ec2DescribeVpcsPolicy);
+        securityAuditRole.addToPolicy(securityAuditRolePolicies.ec2DescribeSubnetsPolicy);
+        securityAuditRole.addToPolicy(securityAuditRolePolicies.ec2DescribeRouteTablesPolicy);
+        securityAuditRole.addToPolicy(securityAuditRolePolicies.ec2DescribeNetworkAclsPolicy);
+        securityAuditRole.addToPolicy(securityAuditRolePolicies.ec2DescribeInternetGatewaysPolicy);    
     }
 }
 
